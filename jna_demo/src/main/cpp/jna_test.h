@@ -1,0 +1,11 @@
+//
+// Created by emoji on 2023/3/3.
+//
+
+#ifndef PATHSELECTOR_JNA_DEMO_SRC_MAIN_CPP_JNA_TEST_H_
+#define PATHSELECTOR_JNA_DEMO_SRC_MAIN_CPP_JNA_TEST_H_
+extern "C"{
+int SayTest(int i);
+}
+
+#endif //PATHSELECTOR_JNA_DEMO_SRC_MAIN_CPP_JNA_TEST_H_

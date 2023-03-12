@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources >
+    <color name="black" >#FF000000</color >
+    <color name="black_80" >#CC000000</color >
+    <color name="black_60" >#99000000</color >
+    <color name="black_40" >#66000000</color >
+    <color name="black_20" >#33000000</color >
+    <color name="black_10" >#1A000000</color >
+    <color name="white_100" >#ffffffff</color >
+    <color name="white_80" >#CCFFFFFF</color >
+    <color name="white_60" >#99FFFFFF</color >
+    <color name="white_40" >#66FFFFFF</color >
+    <color name="white_20" >#33FFFFFF</color >
+    <color name="blue_100" >#0000FF</color >
+    <color name="transparent" >#00000000</color >
+</resources >

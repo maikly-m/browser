@@ -1,0 +1,6 @@
+<resources >
+    <string name="hello_title_fragment" >Hello title fragment</string >
+    <string name="hello_path_fragment" >Hello path fragment</string >
+    <string name="hello_container_fragment" >Hello container fragment</string >
+    <string name="hello_blank_fragment" >Hello blank fragment</string >
+</resources >

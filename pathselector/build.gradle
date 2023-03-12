@@ -1,0 +1,61 @@
+plugins {
+    id 'com.android.library'
+    id 'org.jetbrains.kotlin.android'
+}
+android {
+    compileSdkVersion 33
+    defaultConfig {
+        minSdkVersion 14
+        targetSdkVersion 33
+        versionCode 1
+        versionName "1.0"
+        consumerProguardFiles "proguard-rules.pro"
+    }
+
+
+    buildTypes {
+        release {
+            minifyEnabled false      // 代码混淆
+            zipAlignEnabled false    // Zip压缩优化
+            shrinkResources false    // 移除未被使用的资源
+            proguardFiles 'proguard-rules.pro'
+            consumerProguardFiles 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+    buildFeatures {
+        viewBinding true
+        dataBinding true
+    }
+
+}
+
+dependencies {
+    //todo
+    //embed project(path: ':AndroidUtilCode', configuration: 'default')
+
+    implementation "com.guolindev.permissionx:permissionx:1.6.4"
+    //万能适配器
+    implementation 'com.github.CymChad:BaseRecyclerViewAdapterHelper:3.0.11'
+
+    //异步库
+    implementation 'com.github.xuexiangjys.XTask:xtask-core:1.0.2'
+
+    //使用这个包遍历Android/data目录
+    implementation 'androidx.documentfile:documentfile:1.0.1'
+    //基础控件
+    implementation 'androidx.recyclerview:recyclerview:1.2.1'
+
+    implementation 'androidx.core:core-ktx:1.7.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.8.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+
+    implementation project(path: ':AndroidUtilCode')
+}
