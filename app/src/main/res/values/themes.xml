@@ -22,4 +22,13 @@
     <style name="Theme.PathSelector.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
 
     <style name="Theme.PathSelector.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
+
+    <style name="Theme.PathSelector.NoActionBar.NoActionBar" >
+        <item name="windowActionBar" >false</item >
+        <item name="windowNoTitle" >true</item >
+    </style >
+
+    <style name="Theme.PathSelector.NoActionBar.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
+
+    <style name="Theme.PathSelector.NoActionBar.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
 </resources >

@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentTransaction
 import com.emoji.media.browser.Constants
 import com.emoji.media.browser.PathBuilder
 import com.emoji.media.browser.ui.FilterActivity
@@ -69,7 +70,7 @@ class FirstFragment : Fragment() {
         }
 
         binding.buttonSecond.setOnClickListener {
-//            nativeLib.SayTest(1)
+            startActivity(Intent(requireContext(), ViewTestActivity::class.java))
         }
 
     }

@@ -22,7 +22,7 @@ class MainActivity : AppCompatActivity() {
             binding.fl.id, firstFragment,
             FirstFragment::class.java.simpleName
         )
-        transaction.addToBackStack(FirstFragment::class.java.getSimpleName())
+        transaction.addToBackStack(FirstFragment::class.java.simpleName)
         transaction.commitAllowingStateLoss()
 
     }
