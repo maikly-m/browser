@@ -26,6 +26,7 @@ class Controller(val pathList: MutableList<String>,
         private set
     val originPaths: ArrayList<String> = arrayListOf()
     var selectFile: ((ArrayList<String>)->Unit)? = null
+    var showSelector = false
 
     init {
         Environment.getExternalStorageDirectory().path.split("/").filter {
@@ -69,7 +70,11 @@ class Controller(val pathList: MutableList<String>,
     }
 
     override fun exit() {
-        exitFunc(this)
+        if (showSelector){
+            pathChangeUpdate()
+        }else{
+            exitFunc(this)
+        }
     }
 
     private fun pathChangeUpdate() {
