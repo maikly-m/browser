@@ -5,9 +5,11 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.CompoundButton
 import android.widget.Toast
 import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -19,6 +21,7 @@ import com.emoji.media.browser.bean.FileInfo
 import com.emoji.media.browser.databinding.FragmentContainerBinding
 import com.emoji.media.browser.databinding.FragmentContentRvItemBinding
 import com.emoji.media.browser.ui.viewmodel.ContentFragmentVM
+import kotlinx.coroutines.selects.select
 
 private const val ARG_PARAM1 = "param1"
 private const val ARG_PARAM2 = "param2"
@@ -62,7 +65,11 @@ class ContainerFragment : BaseFragment() {
 //                outRect.bottom = dp2px(2.0f)
 //            }
 //        })
-        contentAdapter = ContentAdapter()
+        contentAdapter = ContentAdapter{ b ->
+            controller?.let {
+                it.showSelector = b
+            }
+        }
         binding.fragmentContentRv.adapter = contentAdapter
         return binding.root
     }
@@ -120,12 +127,16 @@ class ContainerFragment : BaseFragment() {
     }
 
 
-    inner class ContentAdapter: RecyclerView.Adapter<ViewHolder>() {
-        private var showSelector = false
+    inner class ContentAdapter(private val showSelectorListener:(Boolean)->Unit): RecyclerView.Adapter<ViewHolder>() {
+        private val showSelector = MutableLiveData<Boolean>(false)
         val selectorList = arrayListOf<Int>()
-
+        init {
+            showSelector.observe(viewLifecycleOwner){
+                showSelectorListener(it)
+            }
+        }
         fun clearCondition(){
-            showSelector = false
+            showSelector.value = false
             selectorList.clear()
             mViewModel.showSelector.value = false
             mViewModel.selectorListSize.value = 0
@@ -171,7 +182,7 @@ class ContainerFragment : BaseFragment() {
                             }
                             it.fragmentContentRvItemCl.setOnLongClickListener{false}
                         } else if (pathInfo is FileInfo){
-                            if (showSelector){
+                            if (showSelector.value == true){
                                 it.fragmentContentRvItemCb.visibility = View.VISIBLE
                             }else{
                                 it.fragmentContentRvItemCb.visibility = View.GONE
@@ -185,27 +196,29 @@ class ContainerFragment : BaseFragment() {
                                 it.fragmentContentRvItemCb.isChecked = true
                             }
                             it.fragmentContentRvItemCl.setOnClickListener { _ ->
-                                if (showSelector){
-                                    if (it.fragmentContentRvItemCb.isChecked) {
-                                        it.fragmentContentRvItemCb.isChecked = false
-                                        selectorList.remove(position)
-                                    } else {
-                                        if (selectorList.size >= pathBuilder!!.num){
-                                            Toast.makeText(requireActivity(),
-                                                "选中不能超过${pathBuilder!!.num}个", Toast.LENGTH_SHORT)
-                                                .show()
-                                            return@setOnClickListener
-                                        }
-                                        it.fragmentContentRvItemCb.isChecked = true
-                                        selectorList.add(position)
-                                    }
-                                    mViewModel.selectorListSize.value = selectorList.size
+                                if (showSelector.value == true){
+                                    //trigger to method (fragmentContentRvItemCb.setOnCheckedChangeListener)
+                                    it.fragmentContentRvItemCb.isChecked = !it.fragmentContentRvItemCb.isChecked
                                 }
+                            }
+                            it.fragmentContentRvItemCb.setOnCheckedChangeListener{ _, isChecked ->
+                                if (!isChecked) {
+                                    selectorList.remove(position)
+                                } else {
+                                    if (selectorList.size >= pathBuilder!!.num){
+                                        Toast.makeText(requireActivity(),
+                                            "选中不能超过${pathBuilder!!.num}个", Toast.LENGTH_SHORT)
+                                            .show()
+                                        return@setOnCheckedChangeListener
+                                    }
+                                    selectorList.add(position)
+                                }
+                                mViewModel.selectorListSize.value = selectorList.size
                             }
                             it.fragmentContentRvItemCl.setOnLongClickListener { _ ->
                                 //go forward destination that you select
-                                if (!showSelector){
-                                    showSelector = true
+                                if (showSelector.value == false){
+                                    showSelector.value = true
                                     selectorList.add(position)
                                     mViewModel.showSelector.value = true
                                     mViewModel.selectorListSize.value = selectorList.size
