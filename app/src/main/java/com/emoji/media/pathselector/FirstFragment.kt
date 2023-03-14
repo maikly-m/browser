@@ -1,6 +1,7 @@
 package com.emoji.media.pathselector
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.os.Environment
@@ -30,6 +31,7 @@ class FirstFragment : Fragment() {
     // onDestroyView.
     private val binding get() = _binding!!
     private lateinit var launch: ActivityResultLauncher<Intent>
+    private lateinit var launchTest: ActivityResultLauncher<Intent>
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         launch = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -39,6 +41,11 @@ class FirstFragment : Fragment() {
                         Log.d(TAG, "onCreate: file $s")
                     }
                 }
+            }
+        }
+        launchTest = requireActivity().registerForActivityResult(ActivityResultContracts.StartActivityForResult()){
+            if (it.resultCode==Activity.RESULT_OK){
+                Log.d(TAG, "onCreate: data ${it.data}")
             }
         }
     }
@@ -71,6 +78,12 @@ class FirstFragment : Fragment() {
 
         binding.buttonSecond.setOnClickListener {
             startActivity(Intent(requireContext(), ViewTestActivity::class.java))
+//            Intent(Intent.ACTION_GET_CONTENT).apply {
+//                type = "*/*"
+//                addCategory(Intent.CATEGORY_OPENABLE)
+//                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+//                launchTest.launch(this)
+//            }
         }
 
     }
