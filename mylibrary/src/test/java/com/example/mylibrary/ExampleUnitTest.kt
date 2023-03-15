@@ -14,4 +14,23 @@ class ExampleUnitTest {
     fun addition_isCorrect() {
         assertEquals(4, 2 + 2)
     }
+
+    @Test
+    fun test_format_time() {
+        formatTime(1000).let {
+            println("it= $it")
+        }
+        formatTime(10000).let {
+            println("it= $it")
+        }
+        formatTime(100000).let {
+            println("it= $it")
+        }
+        formatTime(1000000).let {
+            println("it= $it")
+        }
+        formatTime(10000000).let {
+            println("it= $it")
+        }
+    }
 }
