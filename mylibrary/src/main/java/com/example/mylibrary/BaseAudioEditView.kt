@@ -30,14 +30,16 @@ class BaseAudioEditView: View {
     private lateinit var scroller: Scroller
     private val velocityTracker = VelocityTracker.obtain()
 
-    //左边多余的位置大小
-    private var leftSideSize: Int = 2
+    //两边多余的位置大小
+    private var sideSize: Int = 2
     private lateinit var dbPaint: Paint
     private lateinit var flagBarPaint: Paint
     //0.1s
     private val timeSpaceUnit: Int = 10
     //时长 秒
     private var duration: Float = 0f
+    //时长 10*秒
+    private var mDuration: Float = 0f
     //满屏时的时间刻度尺个数
     private var scaleInView: Int = 0
 
@@ -47,12 +49,16 @@ class BaseAudioEditView: View {
 
     //最大的比例尺
     private var maxScale: Int = 1
-    //放大系数 越大表示比例尺越小，最小是1s
+    //放大系数 越大表示比例尺越大，最小是1s
     private var scale: Int = 1
+    //zoom
+    private var zoomScale = 1
     //总的有多少个时间刻度要绘制
     private var timePointInView: Int = 1
     //两个时间刻度尺之间的间隔
-    private var timePointInterval: Int = dp2px(20f)
+    private var timePointInterval: Int = 0
+    //刻度尺个数
+    private var scaleCount: Int = 20
 
     private lateinit var timeScalePaint: Paint
 
@@ -95,46 +101,69 @@ class BaseAudioEditView: View {
     //test 数据
     private fun test() {
         duration = 662.5f
+        mDuration = duration*timeSpaceUnit
         testData.clear()
-        for (i in 0 ..(duration*timeSpaceUnit).toInt()){
+        for (i in 0 ..(mDuration*10).toInt()){
             testData.add(Math.random())
         }
         splitHashMap.clear()
-        splitHashMap[DRAG_LEFT] = DragBean((duration*timeSpaceUnit/3).toInt(), null)
-        splitHashMap[DRAG_RIGHT] = DragBean((duration*timeSpaceUnit*2/3).toInt(), null)
+        splitHashMap[DRAG_LEFT] = DragBean((mDuration/3).toInt(), null)
+        splitHashMap[DRAG_RIGHT] = DragBean((mDuration*2/3).toInt(), null)
     }
 
-    fun changeScale(s: Int): Int{
-        var ss = 1
-        for (i in 0 until s){
-            ss *= 2
+
+    fun zoomIn():Int{
+        zoomScale *= 2
+        if (zoomScale > maxScale){
+            zoomScale = maxScale
         }
-        scale = if (ss > maxScale){
-            maxScale
+        return changeScale()
+    }
+
+    fun zoomOut():Int{
+        if (zoomScale == maxScale){
+            var a = 1
+            while (true){
+                if (a > zoomScale){
+                    break
+                }
+                a *= 2
+            }
+            zoomScale = a/2
         }else{
-            ss
+            zoomScale /= 2
+        }
+        if (zoomScale < 1){
+            zoomScale = 1
+        }
+        return changeScale()
+    }
+
+    private fun changeScale(): Int{
+        scale = if (zoomScale > maxScale){
+            maxScale
+        }else if (zoomScale < 1) {
+            1
+        }else{
+            zoomScale
         }
         //居中偏移修改
         val preMaxLen = timePointInView * timePointInterval
         //总个数
-        timePointInView = scale * scaleInView+1
-        (duration.toInt()*(scale.toFloat()/maxScale)+1).toInt().let {
-            if (timePointInView > it){
-                timePointInView = it
+        timePointInView = if (scale==maxScale) {
+            scaleInView-4
+        } else {
+            if (mDuration%scale==0f) {
+                (mDuration/scale).toInt()
+            } else {
+                (mDuration/scale).toInt()+1
             }
-            (scaleInView+1).run {
-                if (timePointInView < this){
-                    timePointInView = this
-                }
-            }
-
         }
-
         var maxLen = timePointInView * timePointInterval
         originXIncrement = (originXIncrement/preMaxLen)*maxLen
         //适配缩放
-        maxLen = timePointInView * timePointInterval - width/2
-        if (originXIncrement < width/2) {
+        maxLen = (timePointInView+sideSize*2) * timePointInterval - width/2
+        if (originXIncrement <= width/2) {
             originXIncrement = width/2f
         } else if (originXIncrement > maxLen){
             originXIncrement = maxLen.toFloat()
@@ -147,33 +176,24 @@ class BaseAudioEditView: View {
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         originXIncrement = measuredWidth/2f
+        timePointInterval = measuredWidth/scaleCount
+        scaleInView = scaleCount
 
-        scaleInView = measuredWidth/timePointInterval
-        //sideSize = measuredWidth%timePointInterval + measuredWidth/timePointInterval
-
-        maxScale = (duration/scaleInView).toInt()+1
-        //把maxScale变为2的次幂函数值
-        var expA = 1
-        for (i in 0..12){
-            expA *= 2
-            if (maxScale>expA){
-                //continue
+        //计算铺满屏幕时刻度尺之间的时间值，要除去两边占位，各占两格刻度,即最大比例
+        //时间单位 0.1s
+        val distance: Int = (mDuration/(scaleInView-4)).run {
+            if (this==0f){
+                //时长太短
+                1
             }else{
-                maxScale = expA
-                break
+                this.toInt()
             }
         }
-        timePointInView = scale * scaleInView+1
-        (duration.toInt()*(scale.toFloat()/maxScale)+1).toInt().let {
-            if (timePointInView > it){
-                timePointInView = it
-            }
-            (scaleInView+1).run {
-                if (timePointInView < this){
-                    timePointInView = this
-                }
-            }
-        }
+        maxScale = distance
+        scale = maxScale
+        zoomScale = maxScale
+        //最开始用最大比例
+        timePointInView = scaleInView-4
     }
 
 
@@ -233,6 +253,7 @@ class BaseAudioEditView: View {
                         Int.MAX_VALUE
                     )
                     invalidate()
+                }else{
                 }
             }
             else -> {}
@@ -248,8 +269,8 @@ class BaseAudioEditView: View {
                     //修改时间
                     val c = (maxScale/scale*particlePerSecond)
                     //val a = (it.duration.toFloat()/c + 1)*timePointInterval - originXIncrement
-                    (((x+dp2px(10f)+originXIncrement-width/2+flx)/timePointInterval-leftSideSize)*c).let {d->
-                        var maxDuration = duration*timeSpaceUnit
+                    (((x+dp2px(10f)+originXIncrement-width/2+flx)/timePointInterval-sideSize)*c).let { d->
+                        var maxDuration = mDuration
                         splitHashMap[DRAG_RIGHT]?.let {db->
                             maxDuration = db.duration.toFloat()
                         }
@@ -267,9 +288,9 @@ class BaseAudioEditView: View {
                 it.dragPoint?.run {
                     val c = (maxScale/scale*particlePerSecond)
                     //val a = (it.duration.toFloat()/c + 1)*timePointInterval - originXIncrement
-                    (((x-dp2px(10f)+originXIncrement-width/2+flx)/timePointInterval-leftSideSize)*c).let {d->
+                    (((x-dp2px(10f)+originXIncrement-width/2+flx)/timePointInterval-sideSize)*c).let { d->
                         var minDuration = 0f
-                        val maxDuration = duration*timeSpaceUnit
+                        val maxDuration = mDuration
                         splitHashMap[DRAG_LEFT]?.let { db->
                             minDuration = db.duration.toFloat()
                         }
@@ -325,7 +346,7 @@ class BaseAudioEditView: View {
     }
 
     private fun moveScreen(flx: Float):Boolean {
-        val maxLen = timePointInView * timePointInterval - width / 2
+        val maxLen = (timePointInView+sideSize*2) * timePointInterval - width / 2
         var stop = true
         if (originXIncrement >= width / 2 && originXIncrement <= maxLen) {
             originXIncrement -= flx
@@ -334,7 +355,7 @@ class BaseAudioEditView: View {
             } else if (originXIncrement > maxLen) {
                 originXIncrement = maxLen.toFloat()
             }
-            if (originXIncrement > width / 2 && originXIncrement < maxLen){
+            if (originXIncrement >= width / 2 && originXIncrement <= maxLen){
                 //Log.d(TAG, "moveScreen: flx=$flx")
                 stop = false
                 invalidate()
@@ -386,7 +407,7 @@ class BaseAudioEditView: View {
         drawScaleTab(canvas)
         drawDB(canvas)
         drawFlagBar(canvas)
-        drawDragArea(canvas)
+//        drawDragArea(canvas)
         canvas.restore()
     }
 
@@ -397,7 +418,7 @@ class BaseAudioEditView: View {
         //绘制left split
         splitHashMap[DRAG_LEFT]?.let {
             val c = (maxScale/scale*particlePerSecond)
-            val a = (it.duration.toFloat()/c + leftSideSize)*timePointInterval - originXIncrement
+            val a = (it.duration.toFloat()/c + sideSize)*timePointInterval - originXIncrement
             if (a >-halfScope && a < halfScope){
                 //绘制
                 dbPaint.color = Color.BLACK
@@ -417,7 +438,7 @@ class BaseAudioEditView: View {
         }
         splitHashMap[DRAG_RIGHT]?.let {
             val c = (maxScale/scale*particlePerSecond)
-            val a = (it.duration.toFloat()/c + leftSideSize)*timePointInterval - originXIncrement
+            val a = (it.duration.toFloat()/c + sideSize)*timePointInterval - originXIncrement
             if (a >-halfScope && a < halfScope){
                 //绘制
                 dbPaint.color = Color.GREEN
@@ -455,21 +476,24 @@ class BaseAudioEditView: View {
         val interval = timePointInterval / countPerInterval
         var ss = 0
         dbPaint.color = Color.GRAY
-        loop@for (i in leftSideSize until timePointInView){
+        var r = scale*(countPerSecond/countPerInterval)/10
+        if (r==0){
+            r=1
+        }
+        loop@for (i in sideSize until timePointInView){
             val a = i*timePointInterval - originXIncrement
             if (a >-halfScope && a < halfScope){
-                if (ss==0){
-                    //init
-                    ss = maxScale/scale*countPerSecond*(i-1)
-                }
+                ss = scale*(i-sideSize)
+
                 for (j in 0 until countPerInterval){
                     val aa = a + interval * j
                     if (ss >= testData.size){
+                        Log.d(TAG, "drawDB: stop ss=${ss}")
                         break@loop
                     }
                     val hh = h * testData[ss].toFloat()
                     canvas.drawLine(aa, (height-hh)/2f, aa, (height+hh)/2f, dbPaint)
-                    ss += maxScale/scale*(countPerSecond/countPerInterval)
+                    ss += r
                 }
             }
 
@@ -481,13 +505,13 @@ class BaseAudioEditView: View {
         canvas.save()
         //移动到中间
         canvas.translate(width/2f, 0f)
-        for (i in leftSideSize until   timePointInView){
+        for (i in sideSize..timePointInView+sideSize){
             val a = i*timePointInterval - originXIncrement
             if (a >-halfScope && a < halfScope){
                 //间隔5个画一次时间
-                (i-leftSideSize).let {
-                    if(it%5==0){
-                        drawText(canvas, timeScalePaint, Point(a.toInt(), 50), formatTime(it*maxScale/scale*1000L))
+                (i-sideSize).let {
+                    if(it%10==0){
+                        drawText(canvas, timeScalePaint, Point(a.toInt(), 50), formatTime(it*scale*100L))
                     }
                 }
                 canvas.drawLine(a, 100f, a, 200f, timeScalePaint)
