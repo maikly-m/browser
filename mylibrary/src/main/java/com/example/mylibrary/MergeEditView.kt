@@ -120,22 +120,22 @@ class MergeEditView: View {
         mDuration += 262.5*showUnit
         mDuration += 362.3*showUnit
         allData.clear()
+        sortIndex.clear()
         allData.add(arrayListOf<Double>())
         allData.add(arrayListOf<Double>())
         allData.add(arrayListOf<Double>())
         for (i in 0 until (462.5*showUnit).toInt()){
             allData[0].add(Math.random())
-            sortIndex[0] = 0
         }
+        sortIndex.add(0)
         for (i in 0 until(262.5*showUnit).toInt()){
             allData[1].add(Math.random())
-            sortIndex[1] = 1
         }
+        sortIndex.add(1)
         for (i in 0 until(362.3*showUnit).toInt()){
             allData[2].add(Math.random())
-            sortIndex[2] = 2
         }
-
+        sortIndex.add(2)
         dragHashMap.clear()
         for (i in sortIndex){
             dragHashMap["$i"] = DragBean(0, null)
@@ -314,45 +314,26 @@ class MergeEditView: View {
 
     private fun moveDrag(flx: Float, fly: Float) {
         dragHashMap[isDragHit]?.let {
-            if (isDragHit==DRAG_LEFT){
-                it.dragPoint?.run {
-                    //修改时间
-                    // val a = (it.duration.toFloat()/scale + sideSize)*dbPointInterval - originXIncrement
-                    (((x+dp2px(10f)+originXIncrement-width/2+flx)/dbPointInterval-sideSize)*scale).let { d->
-                        var maxDuration = mDuration
-                        dragHashMap[DRAG_RIGHT]?.let { db->
-                            maxDuration = db.duration.toDouble()
-                        }
-                        if (d < 0){
-                            it.duration = 0
-                        }else if (d > maxDuration) {
-                            it.duration = maxDuration.toInt()
-                        }else{
-                            it.duration = d.toInt()
-                        }
-                    }
-                }
-                invalidate()
-            }else if (isDragHit==DRAG_RIGHT) {
-                it.dragPoint?.run {
-                    // val a = (it.duration.toFloat()/scale + sideSize)*dbPointInterval - originXIncrement
-                    (((x-dp2px(10f)+originXIncrement-width/2+flx)/dbPointInterval-sideSize)*scale).let { d->
-                        var minDuration = 0f
-                        val maxDuration = mDuration
-                        dragHashMap[DRAG_LEFT]?.let { db->
-                            minDuration = db.duration.toFloat()
-                        }
-                        if (d > maxDuration){
-                            it.duration = maxDuration.toInt()
-                        }else if (d < minDuration) {
-                            it.duration = minDuration.toInt()
-                        }else{
-                            it.duration = d.toInt()
+            for (j in sortIndex){
+                if (isDragHit=="$j"){
+                    it.dragPoint?.run {
+                        // val a = (it.duration.toFloat()/scale + sideSize)*dbPointInterval - originXIncrement
+                        (((x+ dp2px(10f) +originXIncrement-width/2+flx)/dbPointInterval-sideSize)*scale).let { d->
+                            val minDuration = 0f
+                            val maxDuration = mDuration
+                            if (d > maxDuration){
+                                it.duration = maxDuration.toInt()
+                            }else if (d < minDuration) {
+                                it.duration = minDuration.toInt()
+                            }else{
+                                it.duration = d.toInt()
+                            }
                         }
                     }
+                    invalidate()
                 }
-                invalidate()
-            }else if (isDragHit==DRAG_POSITION) {
+            }
+           if (isDragHit==DRAG_POSITION) {
                 it.dragPoint?.run {
                     // val a = (it.duration.toFloat()/scale + sideSize)*dbPointInterval - originXIncrement
                     (((x+originXIncrement-width/2+flx)/dbPointInterval-sideSize)*scale).let { d->
@@ -374,36 +355,25 @@ class MergeEditView: View {
 
     private fun isDrag() {
         isDragHit = ""
-        dragHashMap[DRAG_LEFT]?.let {
-            it.dragPoint?.let {p ->
-                ((primaryDownPoint.x-p.x)*(primaryDownPoint.x-p.x)
-                    +(primaryDownPoint.y-p.y)*(primaryDownPoint.y-p.y)).let {f ->
-                    if (sqrt(f.toDouble()) < it.radius*2){
-                        //hit
-                        isDragHit = DRAG_LEFT
-                        it.drag = true
-                    }else{
-                        isDragHit = ""
-                        it.drag = false
-                    }
-                }
-            }
-        }
-        if (isDragHit == ""){
-            dragHashMap[DRAG_RIGHT]?.let {
-                it.dragPoint?.let {p ->
-                    ((primaryDownPoint.x-p.x)*(primaryDownPoint.x-p.x)
-                            +(primaryDownPoint.y-p.y)*(primaryDownPoint.y-p.y)).let {f ->
-                        if (sqrt(f.toDouble()) < it.radius*2){
-                            //hit
-                            isDragHit = DRAG_RIGHT
-                            it.drag = true
-                        }else{
-                            isDragHit = ""
-                            it.drag = false
+        for (j in sortIndex){
+            if (isDragHit == ""){
+                dragHashMap["$j"]?.let {
+                    it.dragPoint?.let {p ->
+                        ((primaryDownPoint.x-p.x)*(primaryDownPoint.x-p.x)
+                                +(primaryDownPoint.y-p.y)*(primaryDownPoint.y-p.y)).let {f ->
+                            if (sqrt(f.toDouble()) < it.radius*2){
+                                //hit
+                                isDragHit = "$j"
+                                it.drag = true
+                            }else{
+                                isDragHit = ""
+                                it.drag = false
+                            }
                         }
                     }
                 }
+            }else{
+                break
             }
         }
         if (isDragHit == ""){
@@ -492,54 +462,6 @@ class MergeEditView: View {
         drawScaleTab(canvas)
         drawDB(canvas)
         drawFlagBar(canvas)
-        drawDragArea(canvas)
-        canvas.restore()
-    }
-
-    private fun drawDragArea(canvas: Canvas) {
-        canvas.save()
-        //移动到中间
-        canvas.translate(width/2f, 0f)
-        //绘制left split
-        dragHashMap[DRAG_LEFT]?.let {
-            val a = (it.duration.toFloat()/scale + sideSize)*dbPointInterval - originXIncrement
-            if (a >-halfScope && a < halfScope){
-                //绘制
-                dbPaint.color = leftLimitColor
-                canvas.drawLine(a, 0f, a, height.toFloat(), dbPaint)
-                Path().run {
-                    moveTo(a, height.toFloat()/2-dp2px(10f))
-                    lineTo(a-dp2px(20f), height.toFloat()/2-dp2px(10f))
-                    lineTo(a-dp2px(20f), height.toFloat()/2+dp2px(10f))
-                    lineTo(a, height.toFloat()/2+dp2px(10f))
-                    close()
-                    it.dragPoint = PointF(a-dp2px(10f)+width/2f,height.toFloat()/2)
-                    it.radius = dp2px(10f)
-                    canvas.drawPath(this, dbPaint)
-                }
-
-            }
-        }
-        //绘制right split
-        dragHashMap[DRAG_RIGHT]?.let {
-            val a = (it.duration.toFloat()/scale + sideSize)*dbPointInterval - originXIncrement
-            if (a >-halfScope && a < halfScope){
-                //绘制
-                dbPaint.color = rightLimitColor
-                canvas.drawLine(a, 0f, a, height.toFloat(), dbPaint)
-                Path().run {
-                    moveTo(a, height.toFloat()/2-dp2px(10f))
-                    lineTo(a+dp2px(20f), height.toFloat()/2-dp2px(10f))
-                    lineTo(a+dp2px(20f), height.toFloat()/2+dp2px(10f))
-                    lineTo(a, height.toFloat()/2+dp2px(10f))
-                    close()
-                    //添加 width/2 便于碰撞计算
-                    it.dragPoint = PointF(a+dp2px(10f)+width/2f,height.toFloat()/2)
-                    it.radius = dp2px(10f)
-                    canvas.drawPath(this, dbPaint)
-                }
-            }
-        }
         canvas.restore()
     }
 
@@ -564,32 +486,84 @@ class MergeEditView: View {
         canvas.save()
         //移动到中间
         canvas.translate(width/2f, 0f)
-        val h = 300
+        val h = 150
         //快速定位
         var start:Int = ((originXIncrement-halfScope)/dbPointInterval).toInt()
         if (start < sideSize){
             start = sideSize
         }
-        var hadDraw = false
-        for (i in start until dbPointInView+sideSize){
-            val a = i*dbPointInterval - originXIncrement
-            val index = (i-sideSize)*scale
-            if (a >-halfScope && a < halfScope){
-                hadDraw = true
-                if (index >= testData.size){
-                    Log.d(TAG, "drawDB: stop index=${index}")
-                    break
+        var pos = 1
+        for (j in sortIndex){
+            val data = allData[j]
+            dbPaint.color = dbColor
+            dbPaint.style = Paint.Style.FILL
+            val y = 200+(height-100f)/2*pos
+            pos++
+            var hadDraw = false
+            var firstDrawPoint = Float.MIN_VALUE
+            var lastDrawPoint = Float.MIN_VALUE
+            val offset = dragHashMap["$j"]?.run {
+                duration.toFloat()/scale*dbPointInterval
+            } ?: 0f
+            if (offset != 0f){
+                //需要把快速定位的起点调整
+                start = sideSize + (offset/dbPointInterval).toInt()
+            }
+            forRun@for (i in start until dbPointInView+sideSize){
+                val a = i*dbPointInterval - originXIncrement
+                //根据起点位置不一样来确定数据位置
+                val index = if (offset != 0f){
+                    (i-sideSize-(offset/dbPointInterval).toInt())*scale
+                }else{
+                    (i-sideSize)*scale
                 }
-                val hh = h * testData[index].toFloat()
-                if (a > leftLimit && a < rightLimit) {
-                    dbPaint.color = dbSelectColor
-                } else {
-                    dbPaint.color = dbColor
+                if (index < 0){
+                    continue@forRun
                 }
-                canvas.drawLine(a, (height-hh)/2f, a, (height+hh)/2f, dbPaint)
-            }else{
-                if (hadDraw){
-                    break
+                if (a >-halfScope && a < halfScope){
+                    if (firstDrawPoint==Float.MIN_VALUE){
+                        firstDrawPoint = a
+                    }
+                    hadDraw = true
+                    if (index >= data.size){
+                        //Log.d(TAG, "drawDB: stop index=${index}")
+                        break@forRun
+                    }
+                    val hh = h * data[index].toFloat()
+                    canvas.drawLine(a, (y-hh)/2f, a, (y+hh)/2f, dbPaint)
+                    lastDrawPoint = a
+                }else{
+                    if (hadDraw){
+                        break@forRun
+                    }
+                }
+
+            }
+            //用矩形包括起来
+            if (firstDrawPoint != Float.MIN_VALUE && lastDrawPoint !=  Float.MIN_VALUE){
+                dbPaint.style = Paint.Style.STROKE
+                canvas.drawRect(firstDrawPoint,(y-h)/2f, lastDrawPoint,(y+h)/2f,dbPaint)
+            }
+            //绘制拖拽区
+            dragHashMap["$j"]?.let {
+                //起点位置
+                dbPaint.style = Paint.Style.FILL
+                val a = (it.duration.toFloat()/scale + sideSize)*dbPointInterval - originXIncrement
+                if (a >-halfScope && a < halfScope){
+                    //绘制
+                    dbPaint.color = leftLimitColor
+                    //canvas.drawLine(a, 0f, a, height.toFloat(), dbPaint)
+                    Path().run {
+                        moveTo(a, y /2-dp2px(10f))
+                        lineTo(a-dp2px(20f), y /2-dp2px(10f))
+                        lineTo(a-dp2px(20f), y /2+dp2px(10f))
+                        lineTo(a, y /2+dp2px(10f))
+                        close()
+                        it.dragPoint = PointF(a-dp2px(10f)+width/2f, y /2)
+                        it.radius = dp2px(10f)
+                        canvas.drawPath(this, dbPaint)
+                    }
+
                 }
             }
         }

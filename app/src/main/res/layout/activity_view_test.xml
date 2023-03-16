@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <com.example.mylibrary.SplitEditView
+    <com.example.mylibrary.MergeEditView
         android:id="@+id/bae"
         android:layout_gravity="center"
         android:layout_width="match_parent"
