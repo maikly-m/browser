@@ -11,7 +11,7 @@ import android.widget.Scroller
 import kotlin.math.abs
 import kotlin.math.sqrt
 
-class SplitEditView: View {
+class MergeEditView: View {
 
     private var rightLimitColor: Int = 0
     private var leftLimitColor: Int = 0
@@ -20,8 +20,6 @@ class SplitEditView: View {
     private var timeScalePaintColor: Int = 0
     private var dbSelectColor: Int = 0
     private var dbColor: Int = 0
-    val DRAG_LEFT: String = "left"
-    val DRAG_RIGHT: String = "right"
     //当前位置，单位0.01s
     val DRAG_POSITION: String = "position"
     private var isDragHit: String = ""
@@ -45,8 +43,6 @@ class SplitEditView: View {
     private val particlePerUnit = 10
     //两边多余的位置大小
     private var sideSize: Int = 2*particlePerUnit
-    //时长 秒
-    private var duration: Double = 0.0
     //秒换算为最小db的绘制单位
     private val showUnit = 100
     //时长 0.01秒
@@ -72,10 +68,12 @@ class SplitEditView: View {
     private var scaleCount: Int = 20
 
     private lateinit var timeScalePaint: Paint
+    //时长 0.01秒
+    private val allData: ArrayList<ArrayList<Double>> = arrayListOf()
+    //文件索引,用于表示文件摆放的位置
+    private val sortIndex: ArrayList<Int> = arrayListOf()
 
-    private val testData: ArrayList<Double> = arrayListOf()
-
-    private val TAG = "SplitEditView"
+    private val TAG = "MergeEditView"
     constructor(context: Context) : super(context)
     constructor(context: Context, attrs: AttributeSet?) : super(context, attrs)
     constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(context, attrs, defStyleAttr)
@@ -118,16 +116,31 @@ class SplitEditView: View {
 
     //test 数据
     private fun test() {
-        duration = 662.5
-        mDuration = duration*showUnit
-        testData.clear()
-        for (i in 0 ..(mDuration).toInt()){
-            testData.add(Math.random())
+        mDuration = 462.5*showUnit
+        mDuration += 262.5*showUnit
+        mDuration += 362.3*showUnit
+        allData.clear()
+        allData.add(arrayListOf<Double>())
+        allData.add(arrayListOf<Double>())
+        allData.add(arrayListOf<Double>())
+        for (i in 0 until (462.5*showUnit).toInt()){
+            allData[0].add(Math.random())
+            sortIndex[0] = 0
         }
+        for (i in 0 until(262.5*showUnit).toInt()){
+            allData[1].add(Math.random())
+            sortIndex[1] = 1
+        }
+        for (i in 0 until(362.3*showUnit).toInt()){
+            allData[2].add(Math.random())
+            sortIndex[2] = 2
+        }
+
         dragHashMap.clear()
-        dragHashMap[DRAG_LEFT] = DragBean(testData.size/3, null)
-        dragHashMap[DRAG_RIGHT] = DragBean(testData.size*2/3, null)
-        dragHashMap[DRAG_POSITION] = DragBean(testData.size/2, null)
+        for (i in sortIndex){
+            dragHashMap["$i"] = DragBean(0, null)
+        }
+        dragHashMap[DRAG_POSITION] = DragBean(0, null)
     }
 
 
@@ -196,8 +209,17 @@ class SplitEditView: View {
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-        //宽高比值4:3, 以宽度为准
-        setMeasuredDimension(widthMeasureSpec, measuredWidth*3/4)
+        //宽高比值4:3(两个文件), 以宽度为准
+        //根据文件数量添加高度
+        if (allData.size <= 2){
+            setMeasuredDimension(widthMeasureSpec, measuredWidth*3/4)
+        }else if (allData.size==3) {
+            setMeasuredDimension(widthMeasureSpec, measuredWidth)
+        }else{
+            //todo 不支持4个及其以上
+            throw IllegalArgumentException("allData.size >= 4")
+        }
+
         originXIncrement = measuredWidth/2f
         dbPointInterval = measuredWidth.toFloat()/(scaleCount*particlePerUnit)
         dbCountInView = scaleCount*particlePerUnit
@@ -543,15 +565,6 @@ class SplitEditView: View {
         //移动到中间
         canvas.translate(width/2f, 0f)
         val h = 300
-        dbPaint.color = Color.GRAY
-        var leftLimit = 0f
-        var rightLimit = 0f
-        dragHashMap[DRAG_LEFT]?.let {
-            leftLimit = (it.duration.toFloat()/scale + sideSize)*dbPointInterval - originXIncrement
-        }
-        dragHashMap[DRAG_RIGHT]?.let {
-            rightLimit = (it.duration.toFloat()/scale + sideSize)*dbPointInterval - originXIncrement
-        }
         //快速定位
         var start:Int = ((originXIncrement-halfScope)/dbPointInterval).toInt()
         if (start < sideSize){
