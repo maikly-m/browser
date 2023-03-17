@@ -1,5 +1,7 @@
 package com.example.mylibrary
 
+import android.graphics.Rect
+import androidx.core.graphics.contains
 import org.junit.Test
 
 import org.junit.Assert.*
@@ -32,5 +34,32 @@ class ExampleUnitTest {
         formatTime(10000000).let {
             println("it= $it")
         }
+    }
+
+    @Test
+    fun test_01(){
+        val rect = Rect()
+        loop@for (j in 0..10){
+            println(":::: ${j}")
+            rect.let {
+                kotlin.run {
+                    return
+                }
+
+            }
+        }
+
+        arrayListOf<Int>().apply {
+            add(1)
+            add(12)
+            add(14)
+        }.forEach {
+            println(":::: ${it}")
+            rect.let {
+
+
+            }
+        }
+        println("----")
     }
 }

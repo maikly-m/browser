@@ -17,6 +17,9 @@
     <color name="left_limit" >#FF000000</color >
     <color name="right_limit" >#FF00FF00</color >
 
-<!--    merge-->
 
+<!--    merge-->
+    <color name="start_End_Sign" >#00BCD4</color >
+    <color name="text_" >#673AB7</color >
+    <color name="text_bound" >#009688</color >
 </resources >

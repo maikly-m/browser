@@ -13,17 +13,31 @@ import kotlin.math.sqrt
 
 class MergeEditView: View {
 
-    private var rightLimitColor: Int = 0
-    private var leftLimitColor: Int = 0
+    private var preShiftRectHit: Int = -1
+    private var shiftRectHit: Int = -1
+    private var sufShiftRectHit: Int = -1
+
+    // 上下或者左右 0 1
+    private var moveDirection: Int = -1
+    private var firstDbRect: Int = 0
+    private var passByMove: Boolean = false
+    private var selectIndex: Int = -1
+    private lateinit var timeTouchRectF: RectF
+    private var textBoundColor: Int = 0
+    private var textColor: Int = 0
+    private lateinit var textPaint: Paint
+    private var startEndSignColor: Int = 0
+    private lateinit var startEndSignPaint: Paint
     private var bgDefaultColor: Int = 0
     private var flagBarPaintColor: Int = 0
     private var timeScalePaintColor: Int = 0
-    private var dbSelectColor: Int = 0
     private var dbColor: Int = 0
     //当前位置，单位0.01s
     val DRAG_POSITION: String = "position"
     private var isDragHit: String = ""
+    private var isShiftRectHit: String = ""
     private val dragHashMap: HashMap<String, DragBean> = hashMapOf()
+    private val selectHashMap: HashMap<String, SelectBean> = hashMapOf()
     private var halfScope: Float = 0f
     private var lastScrollX: Int = -1
     private var lastScrollY: Int = -1
@@ -85,12 +99,12 @@ class MergeEditView: View {
         Log.d(TAG, "init()")
         scroller = Scroller(context)
         dbColor = resources.getColor(R.color.db_default,null)
-        dbSelectColor = resources.getColor(R.color.db_select,null)
         timeScalePaintColor = resources.getColor(R.color.time_scale_paint,null)
         flagBarPaintColor = resources.getColor(R.color.flag_bar_paint,null)
         bgDefaultColor = resources.getColor(R.color.bg_default,null)
-        leftLimitColor = resources.getColor(R.color.left_limit,null)
-        rightLimitColor = resources.getColor(R.color.right_limit,null)
+        startEndSignColor = resources.getColor(R.color.start_End_Sign,null)
+        textColor = resources.getColor(R.color.text_,null)
+        textBoundColor = resources.getColor(R.color.text_bound,null)
         //paint
         timeScalePaint = Paint(Paint.ANTI_ALIAS_FLAG)
             .apply {
@@ -105,6 +119,12 @@ class MergeEditView: View {
                 color = flagBarPaintColor
                 textSize = 16f
             }
+        startEndSignPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+            .apply {
+                strokeWidth = dp2px(1f).toFloat()
+                color = startEndSignColor
+                pathEffect = DashPathEffect(floatArrayOf(dp2px(2f).toFloat(), dp2px(6f).toFloat()), 0f)
+            }
 
         dbPaint = Paint(Paint.ANTI_ALIAS_FLAG)
             .apply {
@@ -112,6 +132,13 @@ class MergeEditView: View {
                 color = dbColor
                 textSize = 10f
             }
+        textPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+            .apply {
+                strokeWidth = dp2px(1f).toFloat()
+                color = textColor
+                textSize = dp2px(8f).toFloat()
+            }
+        timeTouchRectF = RectF(0f, 0f, dp2px(30f).toFloat(), dp2px(20f).toFloat())
     }
 
     //test 数据
@@ -137,10 +164,15 @@ class MergeEditView: View {
         }
         sortIndex.add(2)
         dragHashMap.clear()
-        for (i in sortIndex){
-            dragHashMap["$i"] = DragBean(0, null)
-        }
-        dragHashMap[DRAG_POSITION] = DragBean(0, null)
+        dragHashMap["0"] = DragBean(0, null)
+        dragHashMap["1"] = DragBean((462.5*showUnit).toInt(), null)
+        dragHashMap["2"] = DragBean(((462.5+262.5)*showUnit).toInt(), null)
+        dragHashMap[DRAG_POSITION] = DragBean((mDuration/2).toInt(), null)
+
+        selectHashMap["0"] = SelectBean()
+        selectHashMap["1"] = SelectBean()
+        selectHashMap["2"] = SelectBean()
+        selectIndex = 0
     }
 
 
@@ -259,22 +291,44 @@ class MergeEditView: View {
                 primaryLastPoint = primaryDownPoint
                 moveX = 0f
                 moveY = 0f
+                moveDirection = -1
                 isFling = false
                 stopFling()
-                isDrag()
+                if (!isPointDrag()) {
+                    //检测位置变换
+                    isShiftRect()
+                }
+                passByMove = false
             }
             MotionEvent.ACTION_MOVE -> {
+                passByMove = true
                 val downPoint = PointF(event.getX(event.actionIndex), event.getY(event.actionIndex))
                 val flx = downPoint.x - primaryLastPoint.x
                 val fly = downPoint.y - primaryLastPoint.y
                 if (isDragHit != ""){
                     moveDrag(flx, fly)
                 }else{
-                    val moveScreen = moveScreen(flx)
                     moveX += abs(flx)
                     moveY += abs(fly)
-                    if (moveX >= 20 || moveY >= 20) {
-                        isFling = true && !moveScreen
+                    if (moveDirection == -1){
+                        //确定方向
+                        moveDirection = if (moveX >= moveY) {
+                            //move x
+                            1
+                        } else {
+                            //move y
+                            0
+                        }
+                    }
+                    if (isShiftRectHit != "" && moveDirection==0){
+                        //to shift rectangles up and down
+                        Log.d(TAG, "onTouchEvent: moveY")
+                        shiftRect(fly)
+                    }else{
+                        val moveScreen = moveScreen(flx)
+                        if (moveX >= 20 || moveY >= 20) {
+                            isFling = true && !moveScreen
+                        }
                     }
                 }
                 primaryLastPoint = downPoint
@@ -300,12 +354,63 @@ class MergeEditView: View {
                     )
                     invalidate()
                 }else{
+                    val downPoint = PointF(event.getX(event.actionIndex), event.getY(event.actionIndex))
+                    if (!passByMove){
+                        //表示点击事件
+                        clickArea(downPoint)
+
+                    }
                 }
             }
             else -> {}
         }
         //return super.onTouchEvent(event)
         return true
+    }
+
+    private fun shiftRect(fly: Float) {
+        //todo
+    }
+
+    private fun isShiftRect():Boolean {
+        isShiftRectHit != ""
+        selectHashMap["$selectIndex"]?.run {
+            if (rectF.contains(primaryDownPoint.x-width/2, primaryDownPoint.y)){
+                isShiftRectHit = "$selectIndex"
+                preShiftRectHit = - 1
+                shiftRectHit = - 1
+                sufShiftRectHit = - 1
+                sortIndex.forEachIndexed { index, value->
+                    if (value==selectIndex){
+                        if (index-1 >= 0){
+                            preShiftRectHit = index - 1
+                        }
+                        shiftRectHit = index
+                        if (index+1 < sortIndex.size){
+                            sufShiftRectHit = index + 1
+                        }
+                    }
+                }
+            }
+        }
+        return isShiftRectHit != ""
+    }
+
+    private fun clickArea(downPoint: PointF) {
+        loop@for (j in sortIndex){
+            val b = selectHashMap["$j"]?.run {
+                if (rectF.contains(downPoint.x-width/2, downPoint.y)){
+                    selectIndex = j
+                    true
+                }else{
+                    false
+                }
+            } ?: false
+            if (b){
+                break
+            }
+        }
+        invalidate()
     }
 
     private fun stopFling() {
@@ -318,9 +423,9 @@ class MergeEditView: View {
                 if (isDragHit=="$j"){
                     it.dragPoint?.run {
                         // val a = (it.duration.toFloat()/scale + sideSize)*dbPointInterval - originXIncrement
-                        (((x+ dp2px(10f) +originXIncrement-width/2+flx)/dbPointInterval-sideSize)*scale).let { d->
+                        (((x+timeTouchRectF.width()/2 +originXIncrement-width/2+flx)/dbPointInterval-sideSize)*scale).let { d->
                             val minDuration = 0f
-                            val maxDuration = mDuration
+                            val maxDuration = mDuration - allData[j].size
                             if (d > maxDuration){
                                 it.duration = maxDuration.toInt()
                             }else if (d < minDuration) {
@@ -353,10 +458,14 @@ class MergeEditView: View {
         }
     }
 
-    private fun isDrag() {
+    private fun isPointDrag():Boolean {
         isDragHit = ""
         for (j in sortIndex){
             if (isDragHit == ""){
+                // 第一个固定不能滑动
+                if (firstDbRect == j){
+                    continue
+                }
                 dragHashMap["$j"]?.let {
                     it.dragPoint?.let {p ->
                         ((primaryDownPoint.x-p.x)*(primaryDownPoint.x-p.x)
@@ -393,7 +502,7 @@ class MergeEditView: View {
                 }
             }
         }
-
+        return isDragHit != ""
     }
 
     private fun moveScreen(flx: Float):Boolean {
@@ -459,9 +568,33 @@ class MergeEditView: View {
         canvas.save()
         //bg
         canvas.drawColor(bgDefaultColor)
+        drawStartEndSign(canvas)
         drawScaleTab(canvas)
         drawDB(canvas)
         drawFlagBar(canvas)
+        canvas.restore()
+    }
+
+    private fun drawStartEndSign(canvas: Canvas) {
+        canvas.save()
+        //移动到中间
+        canvas.translate(width/2f, 0f)
+        //start
+        (0).let {
+            val a = (it/scale + sideSize)*dbPointInterval - originXIncrement
+            if (a >-halfScope && a < halfScope){
+                //绘制
+                canvas.drawLine(a, 0f, a, height.toFloat(), startEndSignPaint)
+            }
+        }
+        //end
+        mDuration.let {
+            val a = (it.toFloat()/scale + sideSize)*dbPointInterval - originXIncrement
+            if (a >-halfScope && a < halfScope){
+                //绘制
+                canvas.drawLine(a, 0f, a, height.toFloat(), startEndSignPaint)
+            }
+        }
         canvas.restore()
     }
 
@@ -487,13 +620,16 @@ class MergeEditView: View {
         //移动到中间
         canvas.translate(width/2f, 0f)
         val h = 150
-        //快速定位
-        var start:Int = ((originXIncrement-halfScope)/dbPointInterval).toInt()
-        if (start < sideSize){
-            start = sideSize
-        }
         var pos = 1
+        firstDbRect = sortIndex.first()
         for (j in sortIndex){
+            //j表示绘制的第几个
+            //快速定位
+            var start:Int = ((originXIncrement-halfScope)/dbPointInterval).toInt()
+            if (start < sideSize){
+                start = sideSize
+            }
+
             val data = allData[j]
             dbPaint.color = dbColor
             dbPaint.style = Paint.Style.FILL
@@ -505,12 +641,15 @@ class MergeEditView: View {
             val offset = dragHashMap["$j"]?.run {
                 duration.toFloat()/scale*dbPointInterval
             } ?: 0f
+            //位置偏移余量
+            var offsetDiff = 0f
             if (offset != 0f){
                 //需要把快速定位的起点调整
                 start = sideSize + (offset/dbPointInterval).toInt()
+                offsetDiff = offset%dbPointInterval
             }
             forRun@for (i in start until dbPointInView+sideSize){
-                val a = i*dbPointInterval - originXIncrement
+                val a = i*dbPointInterval - originXIncrement +offsetDiff
                 //根据起点位置不一样来确定数据位置
                 val index = if (offset != 0f){
                     (i-sideSize-(offset/dbPointInterval).toInt())*scale
@@ -539,31 +678,42 @@ class MergeEditView: View {
                 }
 
             }
-            //用矩形包括起来
             if (firstDrawPoint != Float.MIN_VALUE && lastDrawPoint !=  Float.MIN_VALUE){
+                //用矩形包括起来
                 dbPaint.style = Paint.Style.STROKE
-                canvas.drawRect(firstDrawPoint,(y-h)/2f, lastDrawPoint,(y+h)/2f,dbPaint)
+                if (selectIndex == j){
+                    dbPaint.strokeWidth = dp2px(3f).toFloat()
+                }else{
+                    dbPaint.strokeWidth = dp2px(1f).toFloat()
+                }
+                RectF(firstDrawPoint,(y-h*1.5f)/2f, lastDrawPoint,(y+h*1.5f)/2f).let {
+                    canvas.drawRect(it,dbPaint)
+                    selectHashMap["$j"]?.rectF = it
+                }
+                dbPaint.strokeWidth = dp2px(1f).toFloat()
+                //绘制名称
+                drawTextMiddleY(canvas, textPaint, Point(firstDrawPoint.toInt(), (y/2+h/2+ dp2px(8f)).toInt()), "test$j")
             }
             //绘制拖拽区
             dragHashMap["$j"]?.let {
                 //起点位置
-                dbPaint.style = Paint.Style.FILL
+                textPaint.style = Paint.Style.FILL
                 val a = (it.duration.toFloat()/scale + sideSize)*dbPointInterval - originXIncrement
                 if (a >-halfScope && a < halfScope){
                     //绘制
-                    dbPaint.color = leftLimitColor
-                    //canvas.drawLine(a, 0f, a, height.toFloat(), dbPaint)
-                    Path().run {
-                        moveTo(a, y /2-dp2px(10f))
-                        lineTo(a-dp2px(20f), y /2-dp2px(10f))
-                        lineTo(a-dp2px(20f), y /2+dp2px(10f))
-                        lineTo(a, y /2+dp2px(10f))
-                        close()
-                        it.dragPoint = PointF(a-dp2px(10f)+width/2f, y /2)
-                        it.radius = dp2px(10f)
-                        canvas.drawPath(this, dbPaint)
-                    }
-
+                    textPaint.color = textBoundColor
+                    canvas.save()
+                    canvas.translate(a-timeTouchRectF.width(), y/2-timeTouchRectF.height()/2)
+                    canvas.drawRoundRect(timeTouchRectF,
+                        dp2px(2f).toFloat(),
+                        dp2px(2f).toFloat(), textPaint)
+                    canvas.restore()
+                    it.dragPoint = PointF(a-timeTouchRectF.width()/2+width/2f, y/2)
+                    it.radius = (timeTouchRectF.width()/2).toInt()
+                    //写入时长
+                    textPaint.color = textColor
+                    drawTextMiddle(canvas, textPaint, Point((it.dragPoint!!.x-width/2f).toInt(), it.dragPoint!!.y.toInt()),
+                        formatTime(it.duration.toLong() *10))
                 }
             }
         }
@@ -598,7 +748,7 @@ class MergeEditView: View {
                     (i-sideSize).let {
                         if(it%(10*particlePerUnit)==0){
                             formatTime(it*scale*10L).run {
-                                drawText(canvas, timeScalePaint, Point(a.toInt(), 50), this)
+                                drawTextMiddle(canvas, timeScalePaint, Point(a.toInt(), 50), this)
                                 preTime = this
                                 lastX = 0f
                             }
@@ -623,18 +773,26 @@ class MergeEditView: View {
         }
         if (lastX != 0f && preTime != lastTime){
             //绘制最后一个时间
-            drawText(canvas, timeScalePaint, Point(lastX.toInt(), 50), lastTime)
+            drawTextMiddle(canvas, timeScalePaint, Point(lastX.toInt(), 50), lastTime)
         }
         canvas.restore()
     }
 
-    private fun drawText(canvas: Canvas, paint: Paint, point: Point, text: String){
+    private fun drawTextMiddle(canvas: Canvas, paint: Paint, point: Point, text: String){
         //计算baseline
         paint.fontMetrics.run {
             val distance = (bottom - top) / 2 - bottom
             paint.measureText(text).let {
                 canvas.drawText(text, point.x-it/2, point.y + distance, paint)
             }
+        }
+    }
+
+    private fun drawTextMiddleY(canvas: Canvas, paint: Paint, point: Point, text: String){
+        //计算baseline
+        paint.fontMetrics.run {
+            val distance = (bottom - top) / 2 - bottom
+            canvas.drawText(text, point.x.toFloat(), point.y + distance, paint)
         }
     }
 
